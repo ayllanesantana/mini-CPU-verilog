@@ -171,31 +171,6 @@ Para instruções do tipo `DISPLAY`, exibe o valor atual do registrador selecion
 
 ---
 
-## Arquivos
-
-```
-/
-├── module_mini_cpu.v       ← Top-level
-├── module_alu.v            ← ALU
-├── module_memory.v         ← Banco de registradores
-├── module_lcd.v            ← Controlador LCD
-├── lcd_init_hd44780.v      ← Inicialização do LCD
-├── pinagem.qsf             ← Pin assignments DE2-115
-└── README.md
-```
-
----
-
-## Como Usar
-
-1. Abra o projeto no **Quartus Prime Lite 21.1**
-2. Adicione todos os arquivos `.v` em **Project → Add/Remove Files**
-3. Importe a pinagem em **Assignments → Import Assignments**
-4. Compile com **Processing → Start Compilation**
-5. Grave na placa com **Tools → Programmer**
-
----
-
 ## Especificações
 
 | Item | Especificação |
