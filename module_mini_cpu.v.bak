@@ -1,0 +1,259 @@
+// ===========================================================================
+// Módulo: module_mini_cpu (Módulo de Topo - Top-Level)
+// Função: Orquestra a Mini CPU, realiza o Decode, controla o fluxo de dados
+//         entre a Memória, ULA e atualiza o LCD da placa DE2-115.
+// ===========================================================================
+
+module module_mini_cpu (
+    input  wire        clk,        // Clock de 50 MHz da placa
+    input  wire        btn_clear,  // Botão Ligar/Reset (Push-button físico)
+    input  wire        btn_send,   // Botão Enviar (Executa a instrução)
+    input  wire [17:0] sw,         // 18 Switches de entrada de instrução
+
+    // Interface física com o LCD real da placa
+    output wire [7:0]  lcd_data,
+    output wire        lcd_rs,
+    output wire        lcd_rw,
+    output wire        lcd_e
+);
+
+    // -----------------------------------------------------------------------
+    // Opcodes das Instruções
+    // -----------------------------------------------------------------------
+    localparam [2:0] OP_LOAD    = 3'b000;
+    localparam [2:0] OP_ADD     = 3'b001;
+    localparam [2:0] OP_ADDI    = 3'b010;
+    localparam [2:0] OP_SUB     = 3'b011;
+    localparam [2:0] OP_SUBI    = 3'b100;
+    localparam [2:0] OP_MUL     = 3'b101;
+    localparam [2:0] OP_CLEAR   = 3'b110;
+    localparam [2:0] OP_DISPLAY = 3'b111;
+
+    // -----------------------------------------------------------------------
+    // Sinais de Interconexão (Fiação Interna)
+    // -----------------------------------------------------------------------
+    wire [2:0] opcode   = sw[17:15];
+    wire [3:0] r_dest   = sw[14:11];
+    wire [3:0] r_src1   = sw[10:7];
+    wire [3:0] r_src2   = sw[6:3]; 
+    
+    // Extensão de sinal de 6 bits para 16 bits signed
+    wire signed [15:0] imediato = sw[6] ? (-$signed({10'b0, sw[5:0]})) : {10'b0, sw[5:0]};
+
+    // Fios da Memória
+    reg         mem_we;
+    reg  [3:0]  mem_addr_dest;
+    reg  [3:0]  mem_addr_a;
+    reg  [3:0]  mem_addr_b;
+    reg  signed [15:0] mem_data_in;
+    wire signed [15:0] mem_q_a;
+    wire signed [15:0] mem_q_b;
+    reg         mem_clear_inst;
+
+    // Fios da ULA
+    reg  signed [15:0] alu_op_a;
+    reg  signed [15:0] alu_op_b;
+    wire signed [15:0] alu_resultado;
+    wire        alu_overflow;
+
+    // Fios do LCD
+    reg         lcd_show;
+    reg  [7:0]  lcd_opname_0, lcd_opname_1, lcd_opname_2, lcd_opname_3;
+    reg  [3:0]  lcd_dest_reg;
+    reg  signed [15:0] lcd_result_val;
+
+    // Detetor de Borda de Descida (negedge) para o Botão Enviar
+    reg btn_send_r1, btn_send_r2;
+    always @(posedge clk) begin
+        btn_send_r1 <= btn_send;
+        btn_send_r2 <= btn_send_r1;
+    end
+    // Dispara quando o usuário SOLTA o push-button (0 -> 1)
+    wire pulse_execute = (btn_send_r2 == 1'b0 && btn_send_r1 == 1'b1); 
+
+    // CORREÇÃO DE RESET FÍSICO: Push-buttons da DE2-115 são ativos em BAIXO.
+    // Invertendo aqui, garantimos que 'internal_rst' seja '1' apenas quando pressionado.
+    wire internal_rst = ~btn_clear; 
+
+    // -----------------------------------------------------------------------
+    // Instanciação dos Submódulos
+    // -----------------------------------------------------------------------
+    memory u_memory (
+        .clk        (clk),
+        .rst        (internal_rst),
+        .clear_inst (mem_clear_inst),
+        .we         (mem_we),
+        .addr_dest  (mem_addr_dest),
+        .addr_a     (mem_addr_a),
+        .addr_b     (mem_addr_b),
+        .data_in    (mem_data_in),
+        .q_a        (mem_q_a),
+        .q_b        (mem_q_b)
+    );
+
+    module_alu u_alu (
+        .op_a      (alu_op_a),
+        .op_b      (alu_op_b),
+        .opcode    (opcode),
+        .resultado (alu_resultado),
+        .overflow  (alu_overflow)
+    );
+
+    module_lcd u_lcd (
+        .clk       (clk),
+        .rst       (internal_rst),
+        .show      (lcd_show),
+        .opname_0  (lcd_opname_0),
+        .opname_1  (lcd_opname_1),
+        .opname_2  (lcd_opname_2),
+        .opname_3  (lcd_opname_3),
+        .dest_reg  (lcd_dest_reg),
+        .result    (lcd_result_val), // Agora recebe os 16 bits perfeitamente
+        .lcd_data  (lcd_data),
+        .lcd_rs    (lcd_rs),
+        .lcd_rw    (lcd_rw),
+        .lcd_e     (lcd_e)
+    );
+
+    // -----------------------------------------------------------------------
+    // Máquina de Estados Principal (FSM CPU)
+    // -----------------------------------------------------------------------
+    localparam [2:0]
+        S_RESET        = 3'd0,
+        S_WAIT_BUTTON  = 3'd1,
+        S_FETCH_DECODE = 3'd2,
+        S_EXECUTE      = 3'd3,
+        S_WRITE_BACK   = 3'd4,
+        S_UPDATE_LCD   = 3'd5,
+        S_WAIT_LCD     = 3'd6;
+
+    reg [2:0] state, next_state;
+
+    // Bloco Sequencial da FSM
+    always @(posedge clk or posedge internal_rst) begin
+        if (internal_rst) begin
+            state <= S_RESET;
+        end else begin
+            state <= next_state;
+        end
+    end
+
+    // Bloco Combinacional de Transição de Estados
+    always @(*) begin
+        next_state = state;
+        case (state)
+            S_RESET:        next_state = S_WAIT_BUTTON;
+            S_WAIT_BUTTON:  if (pulse_execute) next_state = S_FETCH_DECODE;
+            S_FETCH_DECODE: next_state = S_EXECUTE;
+            S_EXECUTE:      next_state = S_WRITE_BACK;
+            S_WRITE_BACK:   next_state = S_UPDATE_LCD;
+            S_UPDATE_LCD:   next_state = S_WAIT_LCD;
+            S_WAIT_LCD:     next_state = S_WAIT_BUTTON;
+            default:        next_state = S_WAIT_BUTTON;
+        endcase
+    end
+
+    // -----------------------------------------------------------------------
+    // Bloco Combinacional de Atribuição de Sinais (Controle do Fluxo)
+    // -----------------------------------------------------------------------
+    always @(*) begin
+        // Valores Padrão (Evitam Latches de forma estrita)
+        mem_we          = 1'b0;
+        mem_clear_inst  = 1'b0;
+        mem_addr_dest   = r_dest;
+        mem_addr_a      = r_src1;
+        mem_addr_b      = r_src2;
+        mem_data_in     = alu_resultado;
+
+        alu_op_a        = mem_q_a;
+        alu_op_b        = mem_q_b;
+
+        lcd_show        = 1'b0;
+        lcd_dest_reg    = r_dest;
+        lcd_result_val  = alu_resultado; 
+
+        // Codificação estática das strings ASCII (Nomes das Operações)
+        case (opcode)
+            OP_LOAD:    begin lcd_opname_0 = "L"; lcd_opname_1 = "O"; lcd_opname_2 = "A"; lcd_opname_3 = "D"; end
+            OP_ADD:     begin lcd_opname_0 = "A"; lcd_opname_1 = "D"; lcd_opname_2 = "D"; lcd_opname_3 = " "; end
+            OP_ADDI:    begin lcd_opname_0 = "A"; lcd_opname_1 = "D"; lcd_opname_2 = "D"; lcd_opname_3 = "I"; end
+            OP_SUB:     begin lcd_opname_0 = "S"; lcd_opname_1 = "U"; lcd_opname_2 = "B"; lcd_opname_3 = " "; end
+            OP_SUBI:    begin lcd_opname_0 = "S"; lcd_opname_1 = "U"; lcd_opname_2 = "B"; lcd_opname_3 = "I"; end
+            OP_MUL:     begin lcd_opname_0 = "M"; lcd_opname_1 = "U"; lcd_opname_2 = "L"; lcd_opname_3 = " "; end
+            OP_CLEAR:   begin lcd_opname_0 = "C"; lcd_opname_1 = "L"; lcd_opname_2 = "R"; lcd_opname_3 = " "; end
+            OP_DISPLAY: begin lcd_opname_0 = "D"; lcd_opname_1 = "S"; lcd_opname_2 = "P"; lcd_opname_3 = " "; end
+            default:    begin lcd_opname_0 = "E"; lcd_opname_1 = "R"; lcd_opname_2 = "R"; lcd_opname_3 = " "; end
+        endcase
+
+        // Atribuições específicas e dinâmicas por Estado da FSM
+        case (state)
+            S_FETCH_DECODE: begin
+                // CORREÇÃO: Redireciona o endereço se a instrução for DISPLAY
+                if (opcode == OP_DISPLAY) begin
+                    mem_addr_a = r_dest; 
+                    mem_addr_b = 4'd0;
+                end else begin
+                    mem_addr_a = r_src1;
+                    mem_addr_b = (opcode == OP_ADDI || opcode == OP_SUBI || opcode == OP_LOAD) ? 4'd0 : r_src2;
+                end
+            end
+
+            S_EXECUTE: begin
+                alu_op_a = mem_q_a;
+                if (opcode == OP_LOAD || opcode == OP_ADDI || opcode == OP_SUBI)
+                    alu_op_b = imediato;
+                else
+                    alu_op_b = mem_q_b;
+            end
+
+            S_WRITE_BACK: begin
+                // Preserva o barramento de endereços montado no FETCH
+                if (opcode == OP_DISPLAY) begin
+                    mem_addr_a = r_dest;
+                    mem_addr_b = 4'd0;
+                end else begin
+                    mem_addr_a = r_src1;
+                    mem_addr_b = (opcode == OP_ADDI || opcode == OP_SUBI || opcode == OP_LOAD) ? 4'd0 : r_q_b_addr_select();
+                end
+
+                alu_op_a      = mem_q_a;
+                alu_op_b      = (opcode == OP_LOAD || opcode == OP_ADDI || opcode == OP_SUBI) ? imediato : mem_q_b;
+                mem_addr_dest = r_dest;
+                mem_data_in   = alu_resultado;
+
+                // Controle de escrita síncrona
+                if (opcode == OP_CLEAR) begin
+                    mem_clear_inst = 1'b1;
+                    mem_we         = 1'b0;
+                end else if (opcode == OP_DISPLAY) begin
+                    mem_we         = 1'b0; 
+                end else begin
+                    mem_we         = 1'b1; // Pulsa a gravação na RAM/Banco
+                end
+            end
+
+            S_UPDATE_LCD: begin
+                lcd_show     = 1'b1; // Dispara a máquina do LCD
+                lcd_dest_reg = r_dest;
+                
+                // CORREÇÃO DE ESTABILIDADE: Mantém os caminhos de leitura idênticos ao WriteBack
+                // para que o LCD não leia lixo transiente enquanto captura o valor.
+                if (opcode == OP_DISPLAY) begin
+                    mem_addr_a     = r_dest;
+                    lcd_result_val = mem_q_a; 
+                end else begin
+                    mem_addr_a     = r_src1;
+                    lcd_result_val = alu_resultado;
+                end
+            end
+        endcase
+    end
+
+    // Função auxiliar interna para manter clareza na multiplexação do barramento B
+    function [3:0] r_q_b_addr_select;
+        begin
+            r_q_b_addr_select = r_src2;
+        end
+    endfunction
+
+endmodule
