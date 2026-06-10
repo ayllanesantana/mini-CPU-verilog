@@ -1,10 +1,8 @@
-// ---------------------------------------------------------------------------
 // Módulo: module_lcd 
 // Descrição: Interface para o LCD HD44780 da placa DE2-115.
 //            Exibe o nome da operação (4 caracteres), o registrador de destino
 //            e o resultado assinado de 16 bits (com tratamento para -32768).
-//            Totalmente livre de laços 'for' e otimizado para síntese física.
-// ---------------------------------------------------------------------------
+            
 module module_lcd (
     input  wire        clk,
     input  wire        rst,
@@ -45,9 +43,8 @@ module module_lcd (
     localparam [31:0] DELAY_PULSE = 32'd50;      // ~1 us
     localparam [31:0] DELAY_CLEAR = 32'd100_000; // ~2 ms
 
-    // =======================================================================
-    // DOUBLE DABBLE CORRIGIDO DE 17 BITS (Imune ao overflow de -32768)
-    // =======================================================================
+    // DOUBLE DABBLE CORRIGIDO DE 17 BITS 
+
     reg [16:0] mag; reg [19:0] bcd; reg is_neg;
 
     always @(*) begin
@@ -235,9 +232,8 @@ module module_lcd (
     reg [31:0] delay_cnt,    next_delay_cnt;
     reg [4:0]  char_idx,     next_char_idx;
 
-    // =======================================================================
     // BLOCO SEQUENCIAL: Atualização de Estados e Sinais de Controle
-    // =======================================================================
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             state        <= S_WAIT_INIT;
@@ -257,9 +253,8 @@ module module_lcd (
         end
     end
 
-    // =======================================================================
     // BLOCO COMBINACIONAL: Transições de Estados
-    // =======================================================================
+    
     always @(*) begin
         next_state        = state;
         next_return_state = return_state;
@@ -339,9 +334,8 @@ module module_lcd (
     assign wr_rw = 1'b0;                 // Operação constante de Escrita ('0')
     assign wr_e  = (state == S_PULSE_E); // Gera o pulso de Enable apenas no estado correto
 
-    // =======================================================================
     // BLOCO COMBINACIONAL: Geração dos Dados e Sinais de Registro (RS)
-    // =======================================================================
+    
     always @(*) begin
         wr_data = 8'h00;
         wr_rs   = 1'b0;
@@ -353,9 +347,9 @@ module module_lcd (
             S_WRITE_L1: begin wr_data = line1[char_idx]; wr_rs = 1'b1; end 
             S_WRITE_L2: begin wr_data = line2[char_idx]; wr_rs = 1'b1; end 
 
-            // CORREÇÃO FÍSICA: Durante o pulso elétrico e a espera pós-pulso, o dado 
+            // Durante o pulso elétrico e a espera pós-pulso, o dado 
             // e o sinal RS devem ser idênticos ao estado original que disparou a operação.
-            // O mapeamento abaixo resolve o espelhamento perfeitamente através da FSM.
+      
             S_PULSE_E, S_WAIT: begin
                 case (return_state)
                     S_SET_L1:   begin wr_data = 8'h01; wr_rs = 1'b0; end // Mantém estável o S_CLEAR

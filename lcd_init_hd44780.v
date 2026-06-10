@@ -1,4 +1,4 @@
-// Módulo: lcd_init_hd44780 (Corrigido para Sequência Física do Hardware)
+// Módulo: lcd_init_hd44780 
 // Versão estável: FSM síncrona com sequência completa de Wake-up.
 
 module lcd_init_hd44780 (
@@ -17,7 +17,7 @@ module lcd_init_hd44780 (
     localparam [7:0] CMD_DISPLAY_CLEAR = 8'h01; // Limpa display
     localparam [7:0] CMD_ENTRY_MODE    = 8'h06; // Incrementa cursor
 
-    // Agora são 7 passos obrigatórios para garantir a inicialização física
+    // 7 passos obrigatórios para garantir a inicialização física
     localparam integer NUM_CMDS = 7;
 
     // Temporizações ajustadas para clock de 50 MHz
@@ -56,7 +56,7 @@ module lcd_init_hd44780 (
         end
     end
 
-    // 2) BLOCO COMBINACIONAL: Lógica da ROM (Substitui o bloco initial por lógica pura)
+    // 2) BLOCO COMBINACIONAL: Lógica da ROM 
     always @(*) begin
         case (cmd_idx)
             3'd0: begin current_cmd = CMD_WAKEUP;        current_delay = DELAY_WAKEUP_1; end // Triplo wake-up obrigatório
@@ -70,7 +70,7 @@ module lcd_init_hd44780 (
         endcase
     end
 
-    // 3) BLOCO COMBINACIONAL: Transição de Estados (Mantendo sua lógica que está perfeita)
+    // 3) BLOCO COMBINACIONAL: Transição de Estados
     always @(*) begin
         next_state     = state;
         next_delay_cnt = delay_cnt;

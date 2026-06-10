@@ -1,20 +1,18 @@
-// ---------------------------------------------------------------------------
 // Módulo: memory
 // Função: Banco de 16 registradores de 16 bits da Mini CPU.
 //         Reset sequencial interno via FSM (um registrador por ciclo).
-//         100% Livre de laços (for) e otimizado para RAM nativa M9K.
-// ---------------------------------------------------------------------------
+       
 module module_memory (
     input  wire        clk,
-    input  wire        rst,         // Reset assíncrono global (físico)
-    input  wire        clear_inst,  // Reset síncrono da instrução CLEAR
+    input  wire        rst,         
+    input  wire        clear_inst,  
     input  wire        we,
     input  wire [3:0]  addr_dest,
     input  wire [3:0]  addr_a,
     input  wire [3:0]  addr_b,
     input  wire signed [15:0] data_in,
-    output wire signed [15:0] q_a,  // Mudado para wire para usar assign síncrono
-    output wire signed [15:0] q_b   // Mudado para wire para usar assign síncrono
+    output wire signed [15:0] q_a, 
+    output wire signed [15:0] q_b   
 );
 
     reg signed [15:0] ram [0:15];
@@ -93,7 +91,7 @@ module module_memory (
         endcase
     end
 
-    // 3) LEITURA SÍNCRONA (Estilo exato que você enviou da RAM da Altera)
+    // 3) LEITURA SÍNCRONA 
     assign q_a = ram[addr_a_reg];
     assign q_b = ram[addr_b_reg];
 

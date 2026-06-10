@@ -1,8 +1,7 @@
-// ===========================================================================
 // Módulo: module_mini_cpu (Top-Level)
 // Função: Orquestra a Mini CPU, realiza o Decode, controla o fluxo de dados
 //         entre a Memória, ULA e atualiza o LCD da placa DE2-115.
-// ===========================================================================
+
 module module_mini_cpu (
     input  wire        clk,
     input  wire        btn_clear,
@@ -14,9 +13,8 @@ module module_mini_cpu (
     output wire        lcd_e
 );
 
-    // -----------------------------------------------------------------------
     // Opcodes
-    // -----------------------------------------------------------------------
+   
     localparam [2:0] OP_LOAD    = 3'b000;
     localparam [2:0] OP_ADD     = 3'b001;
     localparam [2:0] OP_ADDI    = 3'b010;
@@ -26,9 +24,8 @@ module module_mini_cpu (
     localparam [2:0] OP_CLEAR   = 3'b110;
     localparam [2:0] OP_DISPLAY = 3'b111;
 
-    // -----------------------------------------------------------------------
     // Decodificação dos switches
-    // -----------------------------------------------------------------------
+ 
     wire [2:0] opcode = sw[17:15];
     wire [3:0] r_dest = sw[14:11];
     wire [3:0] r_src1 = sw[10:7];
@@ -37,14 +34,12 @@ module module_mini_cpu (
     // Extensão de sinal correta: sw[6]=1 → negativo, sw[6]=0 → positivo
     wire signed [15:0] imediato = sw[6] ? {{10{1'b1}}, sw[5:0]} : {{10{1'b0}}, sw[5:0]};
 
-    // -----------------------------------------------------------------------
     // Reset físico (botões ativos em baixo)
-    // -----------------------------------------------------------------------
+    
     wire internal_rst = ~btn_clear;
 
-    // -----------------------------------------------------------------------
     // Detecção de borda de subida do btn_send (soltar = 0→1)
-    // -----------------------------------------------------------------------
+   
     reg btn_send_r1, btn_send_r2;
     always @(posedge clk or posedge internal_rst) begin
         if (internal_rst) begin
@@ -57,9 +52,8 @@ module module_mini_cpu (
     end
     wire pulse_execute = (btn_send_r2 == 1'b0 && btn_send_r1 == 1'b1);
 
-    // -----------------------------------------------------------------------
     // Sinais internos
-    // -----------------------------------------------------------------------
+
     reg        mem_we;
     reg        mem_clear_inst;
     reg  [3:0] mem_addr_dest;
@@ -83,9 +77,8 @@ module module_mini_cpu (
     localparam [24:0] LCD_WAIT_MAX = 25'd10_000_000;
     reg [24:0] lcd_wait_cnt;
 
-    // -----------------------------------------------------------------------
     // Instâncias
-    // -----------------------------------------------------------------------
+ 
     module_memory u_memory (
         .clk        (clk),
         .rst        (internal_rst),
@@ -123,9 +116,8 @@ module module_mini_cpu (
         .lcd_e    (lcd_e)
     );
 
-    // -----------------------------------------------------------------------
     // FSM
-    // -----------------------------------------------------------------------
+
     localparam [2:0]
         S_RESET        = 3'd0,
         S_WAIT_BUTTON  = 3'd1,
