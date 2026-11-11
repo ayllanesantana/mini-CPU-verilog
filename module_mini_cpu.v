@@ -19,13 +19,12 @@ module module_mini_cpu (
     output wire        lcd_rs,
     output wire        lcd_rw,
     output wire        lcd_e,
-    output wire        lcd_on,
-    output wire        lcd_blon
+    output wire        lcd_on
 );
 
-    // Alimentação / backlight do LCD da DE2-115
-    assign lcd_on   = 1'b1;
-    assign lcd_blon = 1'b1;
+    // Alimentação do LCD da DE2-115 (LCD_ON = PIN_L5). O manual diz que o LCD_BLON
+    // (backlight) não deve ser usado, pois o módulo da placa não tem backlight.
+    assign lcd_on = 1'b1;
 
     localparam [2:0] OP_LOAD    = 3'b000;
     localparam [2:0] OP_ADD     = 3'b001;
