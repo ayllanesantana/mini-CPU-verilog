@@ -1,4 +1,4 @@
-# Mini CPU — Sistemas Digitais | CIn UFPE
+# Mini CPU
 
 Implementação de uma Mini CPU em Verilog para a placa FPGA DE2-115 (Cyclone IV).
 A CPU processa 8 instruções, armazena resultados em um banco de 16 registradores de 16 bits e exibe o resultado no LCD da placa.
