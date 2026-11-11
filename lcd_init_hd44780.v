@@ -21,10 +21,10 @@ module lcd_init_hd44780 (
     localparam integer NUM_CMDS = 7;
 
     // Temporizações ajustadas para clock de 50 MHz
-    localparam [31:0] DELAY_POWER_ON   = 32'd1_000_000; // ~20 ms (estabilização da fonte)
+    localparam [31:0] DELAY_POWER_ON   = 32'd2_500_000; // ~50 ms (estabilização da fonte)
     localparam [31:0] DELAY_WAKEUP_1   = 32'd250_000;   // ~5 ms (exigido > 4.1 ms)
-    localparam [31:0] DELAY_WAKEUP_2   = 32'd7_500;     // ~150 us (exigido > 100 us)
-    localparam [31:0] DELAY_STD_CMD     = 32'd2_500;     // ~50 us (exigido > 37 us)
+    localparam [31:0] DELAY_WAKEUP_2   = 32'd100_000;   // ~2 ms (exigido > 100 us)
+    localparam [31:0] DELAY_STD_CMD     = 32'd100_000;   // ~2 ms (exigido > 37 us)
     localparam [31:0] DELAY_CLEAR_CMD   = 32'd100_000;   // ~2 ms (exigido > 1.52 ms)
     localparam [31:0] DELAY_PULSE_E     = 32'd50;        // ~1 us pulso de Enable
 

@@ -44,7 +44,7 @@ module module_lcd (
     assign lcd_e    = (!init_done) ? init_e    : wr_e;
 
     // Delays para clock de 50 MHz
-    localparam [31:0] DELAY_WRITE = 32'd2_500;   // ~50 us
+    localparam [31:0] DELAY_WRITE = 32'd100_000; // ~2 ms (folga; datasheet pede > 37 us)
     localparam [31:0] DELAY_PULSE = 32'd50;      // ~1 us
     localparam [31:0] DELAY_CLEAR = 32'd100_000; // ~2 ms
 
@@ -198,7 +198,7 @@ module module_lcd (
                 l2 = {16{8'h20}};
             end
             default: begin   // modelo inicial
-                l1 = {{7{8'h20}}, "[", "-", "-", "-", "-", "]", 8'h20, 8'h20, 8'h20};
+                l1 = {"-", "-", "-", "-", 8'h20, 8'h20, 8'h20, "[", "-", "-", "-", "-", "]", 8'h20, 8'h20, 8'h20};
                 l2 = {{8{8'h20}}, "+", "0", "0", "0", "0", "0", 8'h20, 8'h20};
             end
         endcase

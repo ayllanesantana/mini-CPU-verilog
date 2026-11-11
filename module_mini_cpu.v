@@ -6,7 +6,7 @@
 // Formato dos switches (18 bits):
 //   Reg x Reg  (ADD, SUB)            : [17:15] op | [14:11] dest | [10:7] src1 | [6:3] src2
 //   Reg x Imm  (ADDI, SUBI, MUL)     : [17:15] op | [14:11] dest | [10:7] src1 | [6] sinal | [5:0] módulo
-//   Carga      (LOAD)                : [17:15] op | [14:11] dest | [10] sinal | [9:4] módulo
+//   Carga      (LOAD)                : [17:15] op | [14:11] dest | [6] sinal | [5:0] módulo
 //   Especiais  (CLEAR, DISPLAY)      : [17:15] op | [14:11] registrador (DISPLAY)
 // O imediato é SINAL + MÓDULO (bit de sinal = 1 -> negativo).
 
@@ -44,15 +44,11 @@ module module_mini_cpu (
         por_rst <= (por_cnt != 8'hFF);
     end
 
-    // Botões: sincroniza e detecta SOLTAR (0 -> 1). Botões da placa são ativos em 0.
-    reg [2:0] pw_s = 3'b111;
-    reg [2:0] sd_s = 3'b111;
-    always @(posedge clk) begin
-        pw_s <= {pw_s[1:0], btn_clear};
-        sd_s <= {sd_s[1:0], btn_send};
-    end
-    wire pulse_power = (pw_s[2:1] == 2'b01);
-    wire pulse_send  = (sd_s[2:1] == 2'b01);
+    // Botões: debounce (~21 ms) e pulso de 1 ciclo ao SOLTAR. Botões da placa são ativos em 0.
+    wire pulse_power;
+    wire pulse_send;
+    button_pulse u_btn_power (.clk(clk), .btn_in(btn_clear), .pulse_out(pulse_power));
+    button_pulse u_btn_send  (.clk(clk), .btn_in(btn_send),  .pulse_out(pulse_send));
 
     // Estados
     localparam [3:0]
@@ -79,11 +75,9 @@ module module_mini_cpu (
     wire [3:0] r_src1 = ir[10:7];
     wire [3:0] r_src2 = ir[6:3];
 
-    // LOAD: sinal em [10], módulo em [9:4]. Demais (ADDI, SUBI, MUL): sinal em [6], módulo em [5:0].
-    wire        imm_neg = (opcode == OP_LOAD) ? ir[10] : ir[6];
-    wire [5:0]  imm_abs = (opcode == OP_LOAD) ? ir[9:4] : ir[5:0];
-    wire signed [15:0] imm_mag  = {10'b0, imm_abs};
-    wire signed [15:0] imediato = imm_neg ? -imm_mag : imm_mag;   // sinal + módulo
+    // Imediato (LOAD, ADDI, SUBI, MUL): sinal em [6], módulo em [5:0]
+    wire signed [15:0] imm_mag  = {10'b0, ir[5:0]};
+    wire signed [15:0] imediato = ir[6] ? -imm_mag : imm_mag;   // sinal + módulo
 
     wire is_imm = (opcode == OP_LOAD) || (opcode == OP_ADDI) ||
                   (opcode == OP_SUBI) || (opcode == OP_MUL);
@@ -185,4 +179,34 @@ module module_mini_cpu (
         end
     end
 
+endmodule
+
+
+// Módulo auxiliar: sincroniza, filtra ruído mecânico (debounce) e gera um pulso de 1 ciclo
+// quando o botão é SOLTO (0 -> 1 estável).
+module button_pulse #(
+    parameter [19:0] DEBOUNCE_MAX = 20'hFFFFF   // ~21 ms a 50 MHz
+)(
+    input  wire clk,
+    input  wire btn_in,
+    output reg  pulse_out = 1'b0
+);
+    reg sync_0 = 1'b1, sync_1 = 1'b1;
+    reg [19:0] counter = 20'd0;
+    reg stable = 1'b1, stable_prev = 1'b1;
+
+    always @(posedge clk) begin
+        sync_0 <= btn_in;
+        sync_1 <= sync_0;
+
+        if (sync_1 == stable) begin
+            counter <= 20'd0;
+        end else begin
+            counter <= counter + 20'd1;
+            if (counter == DEBOUNCE_MAX) stable <= sync_1;
+        end
+
+        stable_prev <= stable;
+        pulse_out   <= (stable_prev == 1'b0) && (stable == 1'b1);
+    end
 endmodule
