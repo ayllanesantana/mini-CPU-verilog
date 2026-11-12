@@ -24,8 +24,8 @@ e exibe a operação e o resultado no LCD da placa.
 ### Display ao ligar (modelo inicial)
 
 ```
-----   [----]
-       +00000
+----      [----]
+          +00000
 ```
 
 ---
@@ -207,19 +207,19 @@ DISPLAY R2  →  SW = 111_0010_0000_0_000000
 O display tem duas linhas de 16 caracteres:
 
 ```
-ADD    [0011]
-        +00025
+ADD       [0011]
+          +00025
 ```
 
 | Posição | Conteúdo |
 |---------|----------|
 | Linha 1, esquerda | Nome da operação: `LOAD`, `ADD `, `ADDI`, `SUB `, `SUBI`, `MUL `, `CLR `, `DPL ` |
-| Linha 1, direita | Registrador de destino em binário, entre colchetes: `[0011]` |
-| Linha 2, direita | Sinal e valor decimal com 5 dígitos: `+00025` ou `-00010` |
+| Linha 1, direita | Registrador de destino em binário, entre colchetes, nas colunas 10 a 15: `[0011]` |
+| Linha 2, direita | Sinal e valor decimal com 5 dígitos, nas colunas 10 a 15: `+00025` ou `-00010` |
 
 - No `CLEAR`, só o nome da operação é exibido.
 - No `DISPLAY`, o registrador mostrado é o selecionado nos switches.
-- Ao ligar, o display mostra o modelo inicial (`----   [----]` e `+00000`). Ao desligar, fica vazio.
+- Ao ligar, o display mostra o modelo inicial (`----      [----]` e `+00000`). Ao desligar, fica vazio.
 
 ### Exemplos de teste
 
@@ -227,13 +227,13 @@ Partindo do sistema recém-ligado:
 
 | Instrução | Switches | Linha 1 | Linha 2 |
 |-----------|----------|---------|---------|
-| `LOAD R1, 10` | `000_0001_0000_0_001010` | `LOAD   [0001]` | `+00010` |
-| `ADDI R2, R1, 5` | `010_0010_0001_0_000101` | `ADDI   [0010]` | `+00015` |
-| `ADD R3, R1, R2` | `001_0011_0001_0010_000` | `ADD    [0011]` | `+00025` |
-| `SUB R4, R3, R1` | `011_0100_0011_0001_000` | `SUB    [0100]` | `+00015` |
-| `MUL R6, R1, 3` | `101_0110_0001_0_000011` | `MUL    [0110]` | `+00030` |
-| `LOAD R7, -10` | `000_0111_0000_1_001010` | `LOAD   [0111]` | `-00010` |
-| `DISPLAY R2` | `111_0010_0000_0_000000` | `DPL    [0010]` | `+00015` |
+| `LOAD R1, 10` | `000_0001_0000_0_001010` | `LOAD      [0001]` | `+00010` |
+| `ADDI R2, R1, 5` | `010_0010_0001_0_000101` | `ADDI      [0010]` | `+00015` |
+| `ADD R3, R1, R2` | `001_0011_0001_0010_000` | `ADD       [0011]` | `+00025` |
+| `SUB R4, R3, R1` | `011_0100_0011_0001_000` | `SUB       [0100]` | `+00015` |
+| `MUL R6, R1, 3` | `101_0110_0001_0_000011` | `MUL       [0110]` | `+00030` |
+| `LOAD R7, -10` | `000_0111_0000_1_001010` | `LOAD      [0111]` | `-00010` |
+| `DISPLAY R2` | `111_0010_0000_0_000000` | `DPL       [0010]` | `+00015` |
 | `CLEAR` | `110_0000_0000_0_000000` | `CLR` | (vazio) |
 
 ---
