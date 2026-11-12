@@ -186,20 +186,21 @@ module module_lcd (
     wire [7:0] dreg0 = 8'd48 + {7'b0, r_dest[0]};
 
     // ---------------- linhas do display (16 caracteres, 1º caractere = MSB) ----------------
+    
     reg [127:0] l1, l2;
     always @(*) begin
         case (r_mode)
             M_NORMAL: begin
-                l1 = {r_op0, r_op1, r_op2, r_op3, 8'h20, 8'h20, 8'h20, "[", dreg3, dreg2, dreg1, dreg0, "]", 8'h20, 8'h20, 8'h20};
-                l2 = {{8{8'h20}}, sign_char, dig4, dig3, dig2, dig1, dig0, 8'h20, 8'h20};
+                l1 = {r_op0, r_op1, r_op2, r_op3, {6{8'h20}}, "[", dreg3, dreg2, dreg1, dreg0, "]"};
+                l2 = {{10{8'h20}}, sign_char, dig4, dig3, dig2, dig1, dig0};
             end
             M_NAME: begin
                 l1 = {r_op0, r_op1, r_op2, r_op3, {12{8'h20}}};
                 l2 = {16{8'h20}};
             end
             default: begin   // modelo inicial
-                l1 = {"-", "-", "-", "-", 8'h20, 8'h20, 8'h20, "[", "-", "-", "-", "-", "]", 8'h20, 8'h20, 8'h20};
-                l2 = {{8{8'h20}}, "+", "0", "0", "0", "0", "0", 8'h20, 8'h20};
+                l1 = {"-", "-", "-", "-", {6{8'h20}}, "[", "-", "-", "-", "-", "]"};
+                l2 = {{10{8'h20}}, "+", "0", "0", "0", "0", "0"};
             end
         endcase
     end
