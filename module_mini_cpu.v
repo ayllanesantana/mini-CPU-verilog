@@ -1,7 +1,7 @@
 // Módulo: module_mini_cpu (Top-Level)
 // Função: Mini CPU para a DE2-115. FSM: Fetch -> Execute -> Write-back -> LCD.
-//   KEY0 (btn_clear): liga/desliga, ao SOLTAR. Desligado = display apagado, CPU parada.
-//   KEY1 (btn_send) : envia a instrução dos switches, ao SOLTAR.
+//   KEY1 (btn_clear): liga/desliga, ao SOLTAR. Desligado = display apagado, CPU parada.
+//   KEY0 (btn_send) : envia a instrução dos switches, ao SOLTAR.
 //
 // Formato dos switches (18 bits):
 //   Reg x Reg  (ADD, SUB)            : [17:15] op | [14:11] dest | [10:7] src1 | [6:3] src2
@@ -12,8 +12,8 @@
 
 module module_mini_cpu (
     input  wire        clk,
-    input  wire        btn_clear,   // KEY0: liga/desliga
-    input  wire        btn_send,    // KEY1: enviar
+    input  wire        btn_clear,   // KEY1: liga/desliga
+    input  wire        btn_send,    // KEY0: enviar
     input  wire [17:0] sw,
     output wire [7:0]  lcd_data,
     output wire        lcd_rs,
