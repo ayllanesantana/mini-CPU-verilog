@@ -10,12 +10,12 @@ e exibe a operação e o resultado no LCD da placa.
 
 ```
 1. Grava na placa  →  Sistema desligado: display vazio, CPU parada
-2. Solta KEY[0]    →  Sistema liga: display mostra o modelo inicial, registradores zerados
+2. Solta KEY[1]    →  Sistema liga: display mostra o modelo inicial, registradores zerados
 3. Configura SW    →  Define a instrução nos 18 switches
-4. Solta KEY[1]    →  CPU executa a instrução
+4. Solta KEY[0]    →  CPU executa a instrução
 5. LCD atualiza    →  Exibe a operação, o registrador de destino e o resultado
 6. Repete 3-5      →  Para executar mais instruções
-7. Solta KEY[0]    →  Sistema desliga: display apagado (registradores zerados ao ligar de novo)
+7. Solta KEY[1]    →  Sistema desliga: display apagado (registradores zerados ao ligar de novo)
 ```
 
 - Os dois botões só agem ao serem **soltos**, e passam por um filtro de ruído (debounce de ~21 ms).
@@ -52,9 +52,9 @@ depois do envio não altera o que aparece no display.
 
 | Estado | Descrição |
 |--------|-----------|
-| `S_OFF` | Sistema desligado, aguarda KEY[0] ser solto |
+| `S_OFF` | Sistema desligado, aguarda KEY[1] ser solto |
 | `S_SHOW_ON` | Pede ao LCD para mostrar o modelo inicial |
-| `S_IDLE` | Ligado, aguarda KEY[1] (enviar) ou KEY[0] (desligar) |
+| `S_IDLE` | Ligado, aguarda KEY[0] (enviar) ou KEY[1] (desligar) |
 | `S_FETCH` | Trava os 18 switches e envia os endereços à memória |
 | `S_EXECUTE` | Executa a operação na ALU e trava o resultado |
 | `S_WRITE` | Grava o resultado na memória (ou limpa tudo, no CLEAR) |
@@ -68,7 +68,7 @@ depois do envio não altera o que aparece no display.
 
 ### module_mini_cpu.v — Top-Level
 Contém a FSM principal, a decodificação da instrução travada, a ligação entre memória, ALU e LCD,
-e o liga/desliga por KEY[0]. Também contém o módulo auxiliar `button_pulse`, que sincroniza o botão,
+e o liga/desliga por KEY[1]. Também contém o módulo auxiliar `button_pulse`, que sincroniza o botão,
 filtra o ruído mecânico (~21 ms) e gera um pulso de um ciclo quando o botão é solto.
 A saída `lcd_on` fica em 1 (alimentação do LCD da placa).
 
@@ -243,8 +243,8 @@ Partindo do sistema recém-ligado:
 | Sinal | Pino |
 |-------|------|
 | `clk` (CLOCK_50) | `PIN_Y2` |
-| `btn_clear` (KEY[0], liga/desliga) | `PIN_M23` |
-| `btn_send` (KEY[1], enviar) | `PIN_M21` |
+| `btn_clear` (KEY[1], liga/desliga) | `PIN_M21` |
+| `btn_send` (KEY[0], enviar) | `PIN_M23` |
 | `lcd_on` (LCD_ON) | `PIN_L5` |
 
 Os demais pinos (switches, dados, RS, RW e EN do LCD) estão em `module_mini_cpu.qsf`.
