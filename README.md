@@ -18,7 +18,7 @@ e exibe a operação e o resultado no LCD da placa.
 7. Solta KEY[1]    →  Sistema desliga: display apagado (registradores zerados ao ligar de novo)
 ```
 
-- Os dois botões só agem ao serem **soltos**, e passam por um filtro de ruído (debounce de ~21 ms).
+- Os dois botões só agem ao serem **soltos**. Não há debounce no código: os botões KEY da DE2-115 já são filtrados por hardware (Schmitt trigger).
 - Instruções enviadas com o sistema desligado são ignoradas.
 
 ### Display ao ligar (modelo inicial)
@@ -60,7 +60,7 @@ depois do envio não altera o que aparece no display.
 | `S_WRITE` | Grava o resultado na memória (ou limpa tudo, no CLEAR) |
 | `S_SHOW` | Pede ao LCD para mostrar operação, registrador e resultado |
 | `S_WAIT_LCD` | Aguarda o LCD ficar pronto |
-| `S_SHOW_OFF` | Pede ao LCD para apagar o display |
+| `S_SHOW_OFF` | Pede ao LCD para desligar o visor (comando `0x08`) |
 
 ---
 
@@ -68,8 +68,8 @@ depois do envio não altera o que aparece no display.
 
 ### module_mini_cpu.v — Top-Level
 Contém a FSM principal, a decodificação da instrução travada, a ligação entre memória, ALU e LCD,
-e o liga/desliga por KEY[1]. Também contém o módulo auxiliar `button_pulse`, que sincroniza o botão,
-filtra o ruído mecânico (~21 ms) e gera um pulso de um ciclo quando o botão é solto.
+e o liga/desliga por KEY[1]. Também contém o módulo auxiliar `button_pulse`, que sincroniza o botão
+e gera um pulso de um ciclo quando ele é solto (os botões da placa já vêm filtrados por hardware).
 A saída `lcd_on` fica em 1 (alimentação do LCD da placa).
 
 ### module_alu.v — Unidade Lógica e Aritmética
@@ -99,18 +99,20 @@ durante a escrita. Inclui:
 - Instância do `lcd_init_hd44780` para a inicialização física.
 
 Modos de escrita: normal (nome, registrador e resultado), só o nome (CLEAR), modelo inicial
-(ao ligar) e apagar (ao desligar).
+(ao ligar) e desligar o visor. Cada escrita envia o comando de display ligado (`0x0C`) ou desligado
+(`0x08`) e reescreve as 32 posições da tela, sem usar o Clear Display, então uma atualização leva
+cerca de 1,5 ms.
 
 | Estado | Descrição |
 |--------|-----------|
 | `S_WAIT_INIT` | Aguarda a inicialização do LCD |
 | `S_IDLE` | Aguarda o pedido de escrita |
-| `S_CLEAR` | Envia o comando Clear Display |
+| `S_DISP` | Envia o comando de display ligado (`0x0C`) ou desligado (`0x08`) |
 | `S_SET_L1` | Posiciona o cursor na linha 1 |
 | `S_WRITE_L1` | Escreve 16 caracteres na linha 1 |
 | `S_SET_L2` | Posiciona o cursor na linha 2 |
 | `S_WRITE_L2` | Escreve 16 caracteres na linha 2 |
-| `S_PULSE_E` / `S_WAIT` | Pulso de Enable e espera (~2 ms por caractere ou comando) |
+| `S_PULSE_E` / `S_WAIT` | Pulso de Enable (~1 µs) e espera (~40 µs por caractere ou comando) |
 | `S_DONE` | Escrita concluída |
 
 ### lcd_init_hd44780.v — Inicialização do LCD
@@ -219,7 +221,7 @@ ADD       [0011]
 
 - No `CLEAR`, só o nome da operação é exibido.
 - No `DISPLAY`, o registrador mostrado é o selecionado nos switches.
-- Ao ligar, o display mostra o modelo inicial (`----      [----]` e `+00000`). Ao desligar, fica vazio.
+- Ao ligar, o display mostra o modelo inicial (`----      [----]` e `+00000`). Ao desligar, o visor é desligado (comando `0x08`) e fica vazio.
 
 ### Exemplos de teste
 
