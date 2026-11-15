@@ -2,8 +2,10 @@
 // Função: Interface com o LCD HD44780 da DE2-115.
 //   - Captura (trava) operação, registrador e resultado no instante do "show", então
 //     o que aparece no display não muda se os switches ou a memória mudarem depois.
+//   - Cada escrita começa com o comando de display ligado (0x0C) ou desligado (0x08) e depois
+//     reescreve as 2 linhas inteiras (16 caracteres cada), sem usar o comando Clear Display.
 //   - mode: 0 = normal (nome, [reg], resultado)   1 = só o nome (CLEAR)
-//           2 = modelo inicial (display ligado, sem instrução)   3 = apagar display
+//           2 = modelo inicial (display ligado, sem instrução)   3 = desliga o visor (0x08)
 //   - ready = 1 quando o módulo está parado e pode receber um novo "show".
 
 module module_lcd (
@@ -44,9 +46,8 @@ module module_lcd (
     assign lcd_e    = (!init_done) ? init_e    : wr_e;
 
     // Delays para clock de 50 MHz
-    localparam [31:0] DELAY_WRITE = 32'd100_000; // ~2 ms (folga; datasheet pede > 37 us)
-    localparam [31:0] DELAY_PULSE = 32'd50;      // ~1 us
-    localparam [31:0] DELAY_CLEAR = 32'd100_000; // ~2 ms
+    localparam [31:0] DELAY_WRITE = 32'd2_000;   // ~40 us por caractere/comando
+    localparam [31:0] DELAY_PULSE = 32'd50;      // ~1 us (pulso de Enable)
 
     // ---------------- valores travados no momento do show ----------------
     reg [7:0] r_op0, r_op1, r_op2, r_op3;
@@ -186,7 +187,7 @@ module module_lcd (
     wire [7:0] dreg0 = 8'd48 + {7'b0, r_dest[0]};
 
     // ---------------- linhas do display (16 caracteres, 1º caractere = MSB) ----------------
-    
+    // Alinhado à direita, como na figura do enunciado: [bbbb] e o valor ocupam as colunas 10 a 15.
     reg [127:0] l1, l2;
     always @(*) begin
         case (r_mode)
@@ -209,7 +210,7 @@ module module_lcd (
     localparam [3:0]
         S_WAIT_INIT = 4'd0,
         S_IDLE      = 4'd1,
-        S_CLEAR     = 4'd2,
+        S_DISP      = 4'd2,
         S_SET_L1    = 4'd3,
         S_WRITE_L1  = 4'd4,
         S_SET_L2    = 4'd5,
@@ -271,9 +272,9 @@ module module_lcd (
         case (state)
             S_WAIT_INIT: if (init_done) next_state = S_IDLE;
 
-            S_IDLE: if (show) next_state = S_CLEAR;
+            S_IDLE: if (show) next_state = S_DISP;
 
-            S_CLEAR: begin
+            S_DISP: begin
                 next_return_state = (r_mode == M_OFF) ? S_DONE : S_SET_L1;
                 next_delay_cnt    = DELAY_PULSE;
                 next_state        = S_PULSE_E;
@@ -317,8 +318,7 @@ module module_lcd (
                 if (delay_cnt > 0)
                     next_delay_cnt = delay_cnt - 1;
                 else begin
-                    // Clear Display precisa de ~2 ms; os demais ~50 us
-                    next_delay_cnt = (!cur_rs && cur_data == 8'h01) ? DELAY_CLEAR : DELAY_WRITE;
+                    next_delay_cnt = DELAY_WRITE;
                     next_state     = S_WAIT;
                 end
             end
@@ -334,7 +334,9 @@ module module_lcd (
     end
 
     assign wr_rw = 1'b0;                 // somente escrita
-    assign wr_e  = (state == S_PULSE_E); // pulso de Enable
+    // Pulso de Enable: sobe só 3 ciclos (60 ns) depois de entrar em PULSE_E, para o RS e o dado
+    // ficarem estáveis antes (setup do HD44780 pede >= 40 ns). Largura do pulso: ~960 ns.
+    assign wr_e  = (state == S_PULSE_E) && (delay_cnt <= (DELAY_PULSE - 32'd3));
 
     // caractere atual de cada linha
     wire [7:0] ch1 = l1[(4'd15 - char_idx[3:0]) * 8 +: 8];
@@ -343,7 +345,7 @@ module module_lcd (
     always @(*) begin
         op_data = 8'h00; op_rs = 1'b0;
         case (state)
-            S_CLEAR:    begin op_data = 8'h01; op_rs = 1'b0; end
+            S_DISP:     begin op_data = (r_mode == M_OFF) ? 8'h08 : 8'h0C; op_rs = 1'b0; end
             S_SET_L1:   begin op_data = 8'h80; op_rs = 1'b0; end
             S_SET_L2:   begin op_data = 8'hC0; op_rs = 1'b0; end
             S_WRITE_L1: begin op_data = ch1;   op_rs = 1'b1; end

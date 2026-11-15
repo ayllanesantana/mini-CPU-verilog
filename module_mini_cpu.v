@@ -43,7 +43,8 @@ module module_mini_cpu (
         por_rst <= (por_cnt != 8'hFF);
     end
 
-    // Botões: debounce (~21 ms) e pulso de 1 ciclo ao SOLTAR. Botões da placa são ativos em 0.
+    // Botões: sincroniza e gera pulso de 1 ciclo ao SOLTAR. Botões da placa são ativos em 0
+    // e já vêm filtrados por hardware (Schmitt trigger).
     wire pulse_power;
     wire pulse_send;
     button_pulse u_btn_power (.clk(clk), .btn_in(btn_clear), .pulse_out(pulse_power));
@@ -181,31 +182,19 @@ module module_mini_cpu (
 endmodule
 
 
-// Módulo auxiliar: sincroniza, filtra ruído mecânico (debounce) e gera um pulso de 1 ciclo
-// quando o botão é SOLTO (0 -> 1 estável).
-module button_pulse #(
-    parameter [19:0] DEBOUNCE_MAX = 20'hFFFFF   // ~21 ms a 50 MHz
-)(
+// Módulo auxiliar: sincroniza o botão e gera um pulso de 1 ciclo quando ele é SOLTO (0 -> 1).
+// Não tem debounce: os botões KEY da DE2-115 já são filtrados por hardware (Schmitt trigger).
+module button_pulse (
     input  wire clk,
     input  wire btn_in,
     output reg  pulse_out = 1'b0
 );
-    reg sync_0 = 1'b1, sync_1 = 1'b1;
-    reg [19:0] counter = 20'd0;
-    reg stable = 1'b1, stable_prev = 1'b1;
+    reg s0 = 1'b1, s1 = 1'b1, s2 = 1'b1;
 
     always @(posedge clk) begin
-        sync_0 <= btn_in;
-        sync_1 <= sync_0;
-
-        if (sync_1 == stable) begin
-            counter <= 20'd0;
-        end else begin
-            counter <= counter + 20'd1;
-            if (counter == DEBOUNCE_MAX) stable <= sync_1;
-        end
-
-        stable_prev <= stable;
-        pulse_out   <= (stable_prev == 1'b0) && (stable == 1'b1);
+        s0 <= btn_in;
+        s1 <= s0;
+        s2 <= s1;
+        pulse_out <= (s2 == 1'b0) && (s1 == 1'b1);
     end
 endmodule
