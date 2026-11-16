@@ -20,6 +20,8 @@ e exibe a operação e o resultado no LCD da placa.
 
 - Os dois botões só agem ao serem **soltos**. Não há debounce no código: os botões KEY da DE2-115 já são filtrados por hardware (Schmitt trigger).
 - Instruções enviadas com o sistema desligado são ignoradas.
+- O pedido de ligar ou desligar (soltar KEY[1]) nunca se perde: se o LCD estiver ocupado, o pedido
+  fica guardado e é atendido assim que ele terminar.
 
 ### Display ao ligar (modelo inicial)
 
@@ -70,7 +72,7 @@ depois do envio não altera o que aparece no display.
 Contém a FSM principal, a decodificação da instrução travada, a ligação entre memória, ALU e LCD,
 e o liga/desliga por KEY[1]. Também contém o módulo auxiliar `button_pulse`, que sincroniza o botão
 e gera um pulso de um ciclo quando ele é solto (os botões da placa já vêm filtrados por hardware).
-A saída `lcd_on` fica em 1 (alimentação do LCD da placa).
+As saídas `lcd_on` e `lcd_blon` ficam em 1 (alimentação e backlight do LCD da placa).
 
 ### module_alu.v — Unidade Lógica e Aritmética
 Recebe dois operandos de 16 bits com sinal e o opcode, e retorna o resultado.
@@ -248,9 +250,9 @@ Partindo do sistema recém-ligado:
 | `btn_clear` (KEY[1], liga/desliga) | `PIN_M21` |
 | `btn_send` (KEY[0], enviar) | `PIN_M23` |
 | `lcd_on` (LCD_ON) | `PIN_L5` |
+| `lcd_blon` (LCD_BLON) | `PIN_L6` |
 
 Os demais pinos (switches, dados, RS, RW e EN do LCD) estão em `module_mini_cpu.qsf`.
-O sinal `LCD_BLON` não é usado, pois o LCD da DE2-115 não tem backlight.
 
 ---
 
