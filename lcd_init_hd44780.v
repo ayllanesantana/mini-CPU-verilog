@@ -140,7 +140,8 @@ module lcd_init_hd44780 (
                 lcd_data = current_cmd;
                 lcd_rs   = 1'b0;
                 lcd_rw   = 1'b0;
-                lcd_e    = 1'b1; // Pulso ativo
+                // E sobe 3 ciclos depois de entrar em S_PULSE: dá >= 80 ns de setup para RS e dado
+                lcd_e    = (delay_cnt <= (DELAY_PULSE_E - 32'd3)); // Pulso ativo
             end
             S_WAIT: begin
                 lcd_data = current_cmd; // Segura os dados estáveis pós-pulso (Hold Time)

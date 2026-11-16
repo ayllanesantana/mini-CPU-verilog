@@ -19,12 +19,13 @@ module module_mini_cpu (
     output wire        lcd_rs,
     output wire        lcd_rw,
     output wire        lcd_e,
-    output wire        lcd_on
+    output wire        lcd_on,
+    output wire        lcd_blon
 );
 
-    // Alimentação do LCD da DE2-115 (LCD_ON = PIN_L5). O manual diz que o LCD_BLON
-    // (backlight) não deve ser usado, pois o módulo da placa não tem backlight.
-    assign lcd_on = 1'b1;
+    // Alimentação e backlight do LCD da DE2-115 (LCD_ON = PIN_L5, LCD_BLON = PIN_L6)
+    assign lcd_on   = 1'b1;
+    assign lcd_blon = 1'b1;
 
     localparam [2:0] OP_LOAD    = 3'b000;
     localparam [2:0] OP_ADD     = 3'b001;
@@ -64,6 +65,7 @@ module module_mini_cpu (
 
     reg [3:0]         state   = S_OFF;
     reg               on_flag = 1'b0;     // 1 = sistema ligado
+    reg               power_req = 1'b0;   // pedido de liga/desliga guardado (KEY1 solto com o LCD ocupado)
     reg [17:0]        ir      = 18'd0;    // instrução travada no FETCH
     reg signed [15:0] res_r   = 16'sd0;   // resultado travado no EXECUTE
 
@@ -155,19 +157,26 @@ module module_mini_cpu (
     );
 
     // FSM
+    // O pedido de liga/desliga (KEY1 solto) nunca se perde: se o LCD estiver ocupado, ele fica
+    // guardado em power_req e é atendido assim que o sistema puder trocar de estado.
     always @(posedge clk) begin
         if (por_rst) begin
-            state   <= S_OFF;
-            on_flag <= 1'b0;
+            state     <= S_OFF;
+            on_flag   <= 1'b0;
+            power_req <= 1'b0;
         end else begin
             case (state)
-                S_OFF:      if (pulse_power && lcd_ready) begin
-                                on_flag <= 1'b1;
-                                state   <= S_SHOW_ON;
+                S_OFF:      if (power_req && lcd_ready) begin
+                                power_req <= 1'b0;
+                                on_flag   <= 1'b1;
+                                state     <= S_SHOW_ON;
                             end
                 S_SHOW_ON:  state <= S_WAIT_LCD;
-                S_IDLE:     if (pulse_power)     state <= S_SHOW_OFF;
-                            else if (pulse_send) state <= S_FETCH;
+                S_IDLE:     if (power_req) begin
+                                power_req <= 1'b0;
+                                state     <= S_SHOW_OFF;
+                            end else if (pulse_send)
+                                state     <= S_FETCH;
                 S_FETCH:    begin ir <= sw; state <= S_EXECUTE; end
                 S_EXECUTE:  begin res_r <= alu_resultado; state <= S_WRITE; end
                 S_WRITE:    state <= S_SHOW;
@@ -176,6 +185,9 @@ module module_mini_cpu (
                 S_WAIT_LCD: if (lcd_ready) state <= on_flag ? S_IDLE : S_OFF;
                 default:    state <= S_OFF;
             endcase
+
+            // por último, para um novo pedido nunca ser apagado pelo "power_req <= 0" acima
+            if (pulse_power) power_req <= 1'b1;
         end
     end
 
